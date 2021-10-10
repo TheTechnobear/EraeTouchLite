@@ -32,6 +32,11 @@ endif ()
 
 set(CMAKE_CXX_STANDARD 14)
 
+set(USE_LIBRE_MIDI off)
+if(USE_LIBRE_MIDI)
+    set(CMAKE_CXX_STANDARD 17)
+endif()
+
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -ffast-math -funroll-loops -fomit-frame-pointer")
 
 if (SALT)
@@ -115,11 +120,12 @@ if (NOT DISABLE_LIBUSB)
     #add_subdirectory(external/libusb libusb)
 endif ()
 
-#add_subdirectory(external/oscpack oscpack)
+add_subdirectory(external/rtmidi rtmidi)
 #add_subdirectory(external/portaudio portaudio)
+add_subdirectory(external/moodycamel)
+
+#add_subdirectory(external/oscpack oscpack)
 #add_subdirectory(external/cJSON cjson)
-#add_subdirectory(external/rtmidi rtmidi)
-#add_subdirectory(external/moodycamel)
 
 
 add_subdirectory(erae-api)

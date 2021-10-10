@@ -15,7 +15,7 @@ include_directories(
 add_executable(demo-app ${APP_SRC})
 
 #target_link_libraries(demo-app erae-api oscpack rtmidi)
-target_link_libraries(demo-app erae-api)
+target_link_libraries(demo-app erae-api rtmidi)
 
 if (UNIX AND NOT APPLE)
     target_link_libraries(demo-app pthread)

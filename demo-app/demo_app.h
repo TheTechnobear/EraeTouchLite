@@ -1,13 +1,13 @@
 #pragma once
 
-#include <erae_api.h>
+#include <EraeApi.h>
 
 class DemoApp {
 public:
-    bool start();
+    void start();
     void stop();
     void process();
 private:
-    EraeApi::EraeApi api_;
+    std::shared_ptr<EraeApi::EraeApi> api_;
 };
 

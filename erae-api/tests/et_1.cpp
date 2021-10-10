@@ -1,39 +1,42 @@
 #include <iostream>
 
-#include <erae_api.h>
+#include <EraeApi.h>
+
+#define ET_DEVICE "test"
+
 class Test {
 public:
-	bool start();
-	void stop();
-	void process(); 
+    void start();
+    void stop();
+    void process();
 private:
-	EraeApi::EraeApi api_;
+    std::shared_ptr<EraeApi::EraeApi> api_;
 };
 
 
 ///////////////////////////////////
-int main(int argc, char** argv) {
-
-	Test test;
-	if(test.start()) {
-		test.process();
-		test.stop();
-	}
+int main(int argc, char **argv) {
+    Test test;
+    test.start();
+    test.process();
+    test.stop();
 }
 
 ///////////////////////////////////////////////
 
 
-bool Test::start() {
-	return api_.connect("");
+void Test::start() {
+    api_ = std::make_shared<EraeApi::EraeApi>(ET_DEVICE);
+    api_->start();
 }
 
 void Test::stop() {
-	std::cout << "test app" << std::endl;
+    api_->stop();
 }
 
 void Test::process() {
-
+    std::cout << "test app" << std::endl;
+    api_->process();
 }
 
 
