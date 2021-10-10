@@ -2,20 +2,52 @@
 
 #include<sstream>
 
-#define LOG_0(x) 
+#define LOG_0(x)
 // #define LOG_0(x) std::cout << x 
 
 
-#define LOG_1(x) 
+#define LOG_1(x)
 // #define LOG_1(x) std::cerr << x 
 
 
 namespace EraeApi {
 
-static constexpr unsigned TB_SYSEX_MSG = 0x20;
-static constexpr uint8_t E_Manufacturer[] = {0x00, 0x21, 0x45};
+
+static constexpr uint8_t E_Id[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01};
+static constexpr uint8_t E_Midi_Id = 0x01; // currently, always 1
+static constexpr uint8_t E_Service = 0x01; // touch service
+static constexpr uint8_t E_API = 0x04; // api
+
+// FO  E_ID E_MIDI_ID E_SERVICE E_API E_API_MSG data F7
+
+// example requests
+// enable :     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x01 RECEIVER PREFIX BYTES 0xF7
+// disable:     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x02 0xF7
+// boundary     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x10 ZONE 0xF7
+// clear:       0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x20 ZONE 0xF7
+// d pixel:     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x21 ZONE XPOS YPOS RED GREEN BLUE 0xF7
+// d rect:      0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x22 ZONE XPOS YPOS WIDTH HEIGHT RED GREEN BLUE 0xF7
+// d image:     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x23 ZONE XPOS YPOS WIDTH HEIGHT BIN BIN … BIN CHKS 0xF7
+
+// example replies
+// finger:      0xF0 RECEIVER PREFIX BYTES DAT1 DAT2 XYZ1 ... XYZ14 CHKS 0xF7
+// boundary rep:0xF0 RECEIVER PREFIX BYTES 0x7F 0x01 ZONE Width Height 0xF7
+
+
+// finger
+// DAT1
+// Action type bits aaa (click 0b000 /slide 0b001 /release 0b010) & finger index bits ffff (finger index between 0 and 9) : 0b0aaaffff
+// DAT 2 zone
+// note: DAT1 cannot be 0x7f, so 0x7f = boundary reply
 
 enum SysExMsgs {
+    E_ENABLE = 0x01,
+    E_DISABLE = 0x02,
+    E_BOUNDARY = 0x10,
+    E_CLEAR = 0x20,
+    E_D_PIXEL = 0x21,
+    E_D_RECT = 0x22,
+    E_D_IMG = 0x23,
     E_SYSEX_MAX
 };
 
@@ -55,12 +87,14 @@ public:
 
     unsigned char *buffer() { return buf_; }
 
-    void addHeader(unsigned msgtype) {
-        *this << E_Manufacturer[0];
-        *this << E_Manufacturer[1];
-        *this << E_Manufacturer[2];
-        *this << TB_SYSEX_MSG;
-        *this << msgtype;
+    void addHeader(unsigned apimsg) {
+        for (auto i = 0; i < sizeof(E_Id); i++) {
+            *this << E_Id[i];
+        }
+        *this << E_Midi_Id;
+        *this << E_Service;
+        *this << E_API;
+        *this << apimsg;
     }
 
     void addString(const char *str) {
@@ -115,13 +149,12 @@ public:
         return (pos_ >= size_) || (peek(pos_) == 0xF7);
     }
 
-    bool readHeader() {
+    bool readHeader(unsigned *r_prefix, unsigned r_prefix_sz) {
         bool bad = false;
         bad |= (read() != 0xF0);
-        bad |= (read() != E_Manufacturer[0]);
-        bad |= (read() != E_Manufacturer[1]);
-        bad |= (read() != E_Manufacturer[2]);
-        bad |= (read() != TB_SYSEX_MSG);
+        for (auto i = 0; i < r_prefix_sz; i++) {
+            bad |= (read() != r_prefix[i]);
+        }
         return !bad;
     }
 
@@ -164,6 +197,7 @@ public:
     }
 
     unsigned pos() { return pos_; }
+
 private:
     unsigned char peek(unsigned pos) {
         if (pos < size_) {

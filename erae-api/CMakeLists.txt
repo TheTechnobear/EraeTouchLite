@@ -9,7 +9,7 @@ set(ET_API_SRC
         )
 
 include_directories(
-    .
+        .
 )
 
 add_library(erae-api SHARED ${ET_API_SRC})

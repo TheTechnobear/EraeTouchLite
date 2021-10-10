@@ -4,24 +4,24 @@
 
 
 ///////////////////////////////////
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
-	DemoApp app;
-	if(app.start()) {
-		app.process();
-		app.stop();
-	}
+    DemoApp app;
+    if (app.start()) {
+        app.process();
+        app.stop();
+    }
 }
 
 ///////////////////////////////////////////////
 
 
 bool DemoApp::start() {
-	return api_.connect("");
+    return api_.connect("");
 }
 
 void DemoApp::stop() {
-	std::cout << "demo app" << std::endl;
+    std::cout << "demo app" << std::endl;
 }
 
 void DemoApp::process() {

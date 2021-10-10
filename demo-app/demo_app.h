@@ -4,10 +4,10 @@
 
 class DemoApp {
 public:
-	bool start();
-	void stop();
-	void process(); 
+    bool start();
+    void stop();
+    void process();
 private:
-	EraeApi::EraeApi api_;
+    EraeApi::EraeApi api_;
 };
 
