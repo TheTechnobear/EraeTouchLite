@@ -1,32 +1,38 @@
-# Prerequisites
-*.d
+**/.DS_Store
+*.swp
+*.lock
+profile
+**/build*/*
+build
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+**/*.sublime-workspace
+cmake-build*/
 
-# Precompiled Headers
-*.gch
-*.pch
+.idea/workspace.xml
+.idea/tasks.xml
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+#Xcode
+xcuserdata
+#contents.xcworkspacedata
+DerivedData/
+build/
+*~.nib
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.moved-aside
+Pods/
+Podfile.lock
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+*.xccheckout
 
-# Fortran module files
-*.mod
-*.smod
+**/*.dll
+**/*.o
+**/*.so
+**/*.dylib
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
 
-# Executables
-*.exe
-*.out
-*.app
