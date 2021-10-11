@@ -1,17 +1,10 @@
 #pragma once
 
-#include<sstream>
-
-#define LOG_0(x)
-// #define LOG_0(x) std::cout << x 
-
-
-#define LOG_1(x)
-// #define LOG_1(x) std::cerr << x 
-
+#include <sstream>
+#include <cstdint>
+#include <cstddef>
 
 namespace EraeApi {
-
 
 static constexpr uint8_t E_Id[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01};
 static constexpr uint8_t E_Midi_Id = 0x01; // currently, always 1
@@ -106,7 +99,12 @@ public:
         *this << 0;
     }
 
-    void addUnsigned(unsigned v) {
+    void addUnsigned7(unsigned v) {
+        unsigned b = v & 0b01111111;
+        *this << b;
+    }
+
+    void addUnsigned14(unsigned v) {
         unsigned vMSB = (v >> 7) & 0b01111111;
         unsigned vLSB = v & 0b01111111;
         *this << vMSB;
@@ -125,6 +123,30 @@ public:
             uval = uval >> 7;
         }
 //    LOG_0("addSysExFloat " << tmp << " " << v);
+    }
+
+    static constexpr size_t bitizedSize(size_t len) {
+        return len / 7 * 8 + (len % 7 ? 1 + len % 7 : 0);
+    }
+
+    static constexpr uint8_t bitize(const uint8_t *in, size_t inlen, uint8_t *out) {
+        uint8_t chksum = 0;
+        for (size_t i{0}, outsize{0}; i < inlen; i += 7, outsize += 8) {
+            out[outsize] = 0;
+            for (size_t j = 0; (j < 7) && (i + j < inlen); ++j) {
+                out[outsize] |= (in[i + j] & 0x80) >> (j + 1);
+                out[outsize + j + 1] = in[i + j] & 0x7F;
+                chksum ^= out[outsize + j + 1];
+            }
+            chksum ^= out[outsize];
+        }
+        return chksum;
+    }
+
+    void addData(const uint8_t *data, size_t sz) {
+        for (size_t i = 0; i < sz; i++) {
+            *this << data[i];
+        }
     }
 
 private:
@@ -149,7 +171,7 @@ public:
         return (pos_ >= size_) || (peek(pos_) == 0xF7);
     }
 
-    bool readHeader(unsigned *r_prefix, unsigned r_prefix_sz) {
+    bool readHeader(const uint8_t *r_prefix, size_t r_prefix_sz) {
         bool bad = false;
         bad |= (read() != 0xF0);
         for (auto i = 0; i < r_prefix_sz; i++) {
@@ -158,7 +180,12 @@ public:
         return !bad;
     }
 
-    unsigned readUnsigned() {
+    unsigned readUnsigned7() {
+        unsigned b = (unsigned) read();
+        return b;
+    }
+
+    unsigned readUnsigned14() {
         unsigned msb = read();
         unsigned lsb = read();
         unsigned id = (msb << 7) + lsb;
@@ -198,6 +225,29 @@ public:
 
     unsigned pos() { return pos_; }
 
+    void readData(uint8_t *data, size_t sz) {
+        for (size_t i = 0; i < sz; i++) {
+            data[i] = read();
+        }
+        return;
+    }
+
+    static constexpr size_t unbitizedSize(size_t len) {
+        return len / 8 * 7 + (len % 8 ? len % 8 - 1 : 0);
+    }
+
+    static constexpr uint8_t unbitize(const uint8_t *in, size_t inlen, uint8_t *out) {
+        uint8_t chksum = 0;
+        for (size_t i{0}, outsize{0}; i < inlen; i += 8, outsize += 7) {
+            chksum ^= in[i];
+            for (size_t j = 0; (j < 7) && (j + 1 + i < inlen); ++j) {
+                out[outsize + j] = ((in[i] << (j + 1)) & 0x80) | in[i + j + 1];
+                chksum ^= in[i + j + 1];
+            }
+        }
+        return chksum;
+    }
+
 private:
     unsigned char peek(unsigned pos) {
         if (pos < size_) {
@@ -211,5 +261,6 @@ private:
     unsigned size_ = 0;
     const unsigned char *buf_;
 };
+
 
 } // namespace

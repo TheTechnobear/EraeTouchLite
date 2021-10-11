@@ -1,14 +1,11 @@
 #include "EraeApi.h"
 
 #include <iostream>
-#include <unistd.h>
-#include <iomanip>
+//#define LOG_0(x)
+#define LOG_0(x) std::cout << x << std::endl;
+//#define LOG_1(x)
+#define LOG_1(x) std::cerr << x << std::endl;
 
-#include <sstream>
-
-#include <readerwriterqueue.h>
-
-#include "EraeApi.h"
 
 #ifdef USE_LIBRE_MIDI
 #include "LibreMidiDevice.h"
@@ -20,13 +17,14 @@ using MIDI_TYPE_DEVICE = EraeApi::LibreMidiDevice;
 using MIDI_TYPE_DEVICE = EraeApi::RtMidiDevice;
 #endif
 
+#include "SysExStream.h"
 
 namespace EraeApi {
 
 
 class EraeApiMidiCallback : public MidiCallback {
 public:
-    EraeApiMidiCallback(EraeApiImpl_ *parent) : parent_(parent) { ; }
+    explicit EraeApiMidiCallback(EraeApiImpl_ *parent) : parent_(parent) {  }
 
     void noteOn(unsigned ch, unsigned n, unsigned v) override;
     void noteOff(unsigned ch, unsigned n, unsigned v) override;
@@ -39,15 +37,18 @@ private:
     EraeApiImpl_ *parent_;
 };
 
+constexpr uint8_t RECV_PREFIX[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01, 0x44};
+
+
 class EraeApiImpl_ {
 public:
-    EraeApiImpl_(const std::string &device);
+    explicit EraeApiImpl_(const std::string &device);
 
-    ~EraeApiImpl_(void) = default;
-    void start(void);
-    void stop(void);
+    ~EraeApiImpl_() = default;
+    void start();
+    void stop();
 
-    unsigned process(void);
+    unsigned process();
 
     void addCallback(std::shared_ptr<EraeApiCallback> cb) { callbacks_.push_back(cb); }
 
@@ -65,10 +66,8 @@ public:
 private:
     friend class EraeApiMidiCallback;
 
-    void sendSysEx(unsigned type, const char *data, unsigned len);
-
     // callbacks
-    void onTouch(unsigned zone, unsigned touch, float x, float y, float z);
+    void onTouch(unsigned zone, EraeApiCallback::TouchAction a, unsigned touch, float x, float y, float z);
     void onZoneData(unsigned zone, unsigned width, unsigned height);
 
     void noteOn(unsigned ch, unsigned n, unsigned v);
@@ -83,6 +82,7 @@ private:
     MIDI_TYPE_DEVICE device_;
     EraeApiMidiCallback midiCallback_;
 };
+
 
 //---------------------
 EraeApiImpl_::EraeApiImpl_(const std::string &device) : devname_(device), midiCallback_(this) {
@@ -103,30 +103,9 @@ void EraeApiImpl_::stop() {
     device_.deinit();
 }
 
-void EraeApiImpl_::sendSysEx(unsigned type, const char *data, unsigned len) {
-    //TODO
-    unsigned sz = 1 + 3 + 1 + 1 + len + 1;
-    unsigned char *midi = new unsigned char[sz];
-//    unsigned byte = 0;
-//    midi[byte++] = 0xF0;
-//
-//    for (auto i = 0; i < sizeof(E1_Manufacturer); i++) {
-//        midi[byte++] = E1_Manufacturer[i];
-//    }
-//    midi[byte++] = len > 0 ? E1_R_DATA : E1_R_REQ;
-//    midi[byte++] = type;
-//
-//    for (auto i = 0; i < len; i++) {
-//        midi[byte++] = data[i];
-//    }
-//    midi[byte++] = 0xF7;
-
-    device_.sendBytes(midi, sz);
-}
-
-void EraeApiImpl_::onTouch(unsigned zone, unsigned touch, float x, float y, float z) {
+void EraeApiImpl_::onTouch(unsigned zone, EraeApiCallback::TouchAction a, unsigned touch, float x, float y, float z) {
     for (auto cb: callbacks_) {
-        cb->onTouch(zone, touch, x, y, z);
+        cb->onTouch(zone, a, touch, x, y, z);
     }
 }
 
@@ -169,31 +148,154 @@ void EraeApiImpl_::ch_pressure(unsigned ch, unsigned v) {
 
 
 void EraeApiImpl_::enableApi() {
-//    sendSysEx(E1_T_CONFIG, json.c_str(), json.length());
+    SysExOutputStream sysex(13 + sizeof(RECV_PREFIX) + 1);
+    sysex.begin();
+    sysex.addHeader(SysExMsgs::E_ENABLE);
+    sysex.addData(RECV_PREFIX, sizeof(RECV_PREFIX));
+    sysex.end();
+
+    if (sysex.isValid()) {
+        device_.sendBytes(sysex.buffer(), sysex.size());
+    } else {
+        LOG_0("enableApi() - failed");
+    }
 }
 
 void EraeApiImpl_::disableApi() {
+    SysExOutputStream sysex(13 + 1);
+    sysex.begin();
+    sysex.addHeader(SysExMsgs::E_DISABLE);
+    sysex.end();
 
+    if (sysex.isValid()) {
+        device_.sendBytes(sysex.buffer(), sysex.size());
+    } else {
+        LOG_0("disableApi() - failed");
+    }
 }
 
 void EraeApiImpl_::requestZoneBoundary(unsigned zone) {
+    SysExOutputStream sysex(13 + 1 + 1);
+    sysex.begin();
+    sysex.addHeader(SysExMsgs::E_BOUNDARY);
+    sysex.addUnsigned7(zone);
+    sysex.end();
 
+    if (sysex.isValid()) {
+        device_.sendBytes(sysex.buffer(), sysex.size());
+    } else {
+        LOG_0("requestZoneBoundary() - failed");
+    }
 }
 
-void EraeApiImpl_::clearZone(unsigned zone) {
 
+void EraeApiImpl_::clearZone(unsigned zone) {
+    SysExOutputStream sysex(13 + 1 + 1);
+    sysex.begin();
+    sysex.addHeader(SysExMsgs::E_CLEAR);
+    sysex.addUnsigned7(zone);
+    sysex.end();
+
+    if (sysex.isValid()) {
+        device_.sendBytes(sysex.buffer(), sysex.size());
+    } else {
+        LOG_0("clearZone() - failed");
+    }
 }
 
 void EraeApiImpl_::drawPixel(unsigned zone, unsigned x, unsigned y, unsigned rgb) {
+    SysExOutputStream sysex(13 + 6 + 1);
+    sysex.begin();
+    sysex.addHeader(SysExMsgs::E_D_PIXEL);
+    sysex.addUnsigned7(zone);
+    sysex.addUnsigned7(x);
+    sysex.addUnsigned7(y);
+    sysex.addUnsigned7((rgb & 0xFF0000) >> 16);
+    sysex.addUnsigned7((rgb & 0x00FF00) >> 8);
+    sysex.addUnsigned7((rgb & 0x0000FF));
+    sysex.end();
 
+    if (sysex.isValid()) {
+        device_.sendBytes(sysex.buffer(), sysex.size());
+    } else {
+        LOG_0("drawPixel() - failed");
+    }
 }
 
 void EraeApiImpl_::drawRectangle(unsigned zone, unsigned x, unsigned y, unsigned w, unsigned h, unsigned rgb) {
+//    assert(sizeof(unsigned) == 4);
+    SysExOutputStream sysex(13 + 8 + 1);
+    sysex.begin();
+    sysex.addHeader(SysExMsgs::E_D_RECT);
+    sysex.addUnsigned7(zone);
+    sysex.addUnsigned7(x);
+    sysex.addUnsigned7(y);
+    sysex.addUnsigned7(w);
+    sysex.addUnsigned7(h);
+    sysex.addUnsigned7((rgb & 0xFF0000) >> 16);
+    sysex.addUnsigned7((rgb & 0x00FF00) >> 8);
+    sysex.addUnsigned7((rgb & 0x0000FF));
+    sysex.end();
+
+    if (sysex.isValid()) {
+        device_.sendBytes(sysex.buffer(), sysex.size());
+    } else {
+        LOG_0("drawRectangle() - failed");
+    }
 }
 
 
 void EraeApiImpl_::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, unsigned h, unsigned *rgb) {
+    static uint8_t *bitbuf7 = nullptr;
+    static uint8_t maxsz7 = 0;
+    static uint8_t *bitbuf8 = nullptr;
+    static uint8_t maxsz8 = 0;
+    if (bitbuf7 == nullptr) {
+        unsigned sz = 42 * 16;
+        unsigned maxsz8 = sz * 3;
+        unsigned maxsz7 = SysExOutputStream::bitizedSize(maxsz8);
+        bitbuf7 = new uint8_t[maxsz7];
+        bitbuf8 = new uint8_t[maxsz8];
+    }
 
+    size_t sz = w * h;
+    size_t sz8 = sz * 3;
+    if (sz8 > maxsz8) {
+        LOG_1("drawImage : bitbuf8 too small");
+        return;
+    }
+
+    for (size_t i = 0; i < sz; i++) {
+        bitbuf8[i * 3] = (rgb[i] & 0xFF0000) >> 16;
+        bitbuf8[i * 3 + 1] = (rgb[i] & 0x00FF00) >> 8;
+        bitbuf8[i * 3 + 2] = (rgb[i] & 0x0000FF);
+    }
+
+    size_t sz7 = SysExOutputStream::bitizedSize(sz8);
+    if (sz7 > maxsz7) {
+        LOG_1("drawImage : bitbuf7 too small");
+        return;
+    }
+
+    uint8_t chksum = SysExOutputStream::bitize(bitbuf8, sz8, bitbuf7);
+
+    SysExOutputStream sysex(13 + 5 + sz7 + 1 + 1);
+    sysex.begin();
+    sysex.addHeader(SysExMsgs::E_D_IMG);
+    sysex.addUnsigned7(zone);
+    sysex.addUnsigned7(x);
+    sysex.addUnsigned7(y);
+    sysex.addUnsigned7(w);
+    sysex.addUnsigned7(h);
+    sysex.addData(bitbuf7, sz7);
+    sysex.addUnsigned7(chksum);
+    sysex.end();
+
+    if (sysex.isValid()) {
+        device_.sendBytes(sysex.buffer(), sysex.size());
+    } else {
+        LOG_0("drawImage() - failed");
+    }
 }
 
 
@@ -214,72 +316,64 @@ void EraeApiMidiCallback::process(const MidiMsg &msg) {
 }
 
 void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
-// TODO
-//    unsigned idx = 0;
-//    unsigned status = data[idx++]; // FO
-//    unsigned man[3];
-//    man[0] = data[idx++];
-//    man[1] = data[idx++];
-//    man[2] = data[idx++];
-//
-//    for (auto i = 0; i < 3; i++) {
-//        if (man[i] != E1_Manufacturer[i] ) {
-//            std::cerr << "sysex not from electra" << std::hex << man[0] << man[1] << man[2] << std::dec << std::endl;
-//            return;
-//        }
-//    }
-//
-//    unsigned reqres = data[idx++];
-//    // if (reqres != E1_R_DATA && reqres != E1_R_REQ && reqres != E1_R_LOG)) {
-//    //     std::cerr << "sysex: invalid msg type " << std::hex << reqres << std::dec << std::endl;
-//    // }
-//
-//    unsigned datatype = data[idx++];
-//
-//    switch (reqres) {
-//    case E1_R_DATA : {
-//        unsigned jsonsz = sz - idx - 1;
-//        char* json = new char[jsonsz + 1];
-//        memcpy(json, data + idx , jsonsz);
-//        json[jsonsz] = 0;
-//        std::string jsonstr = json;
-//        delete [] json;
-//
-//        switch (datatype) {
-//        case E1_T_PRESET_0 : {
-//            parent_->onPreset(jsonstr);
-//            break;
-//        }
-//        case E1_T_CONFIG : {
-//            parent_->onConfig(jsonstr);
-//            break;
-//        }
-//        case E1_T_INFO : {
-//            parent_->onInfo(jsonstr);
-//            break;
-//        }
-//        default: {
-//            // parent_->onError("invalid data type");
-//            std::cerr << "sysex: invalid data type " << std::hex << datatype << std::dec << std::endl;
-//        }
-//        }
-//
-//
-//        break;
-//    }
-//    case E1_R_REQ : {
-//        // not handling requests - yet
-//        break;
-//    }
-//    case E1_R_LOG : {
-//        // not handling log - yet
-//        break;
-//    }
-//    default: {
-//        std::cerr << "sysex: invalid msg type " << std::hex << reqres << std::dec << std::endl;
-//        break;
-//    }
-//    }
+    // inbound sysex processing
+    SysExInputStream sysex(data, sz);
+    if (sysex.isValid()) {
+        bool v = sysex.readHeader(RECV_PREFIX, sizeof(RECV_PREFIX));
+        if (v) {
+            unsigned dat1 = sysex.readUnsigned7();
+            unsigned dat2 = sysex.readUnsigned7();
+            if (dat1 == 0x7f) {
+                // not fingerstream
+                if (dat2 == 0x01) {
+                    // boundary reply
+                    unsigned zone = sysex.readUnsigned7();
+                    unsigned w = sysex.readUnsigned7();
+                    unsigned h = sysex.readUnsigned7();
+                    parent_->onZoneData(zone, w, h);
+                } else {
+                    LOG_1("sysex:: valid prefix, non finger, but unknown msg" << dat1 << ", " << dat2);
+                }
+            } else {
+                static uint8_t *bitbuf7 = nullptr;
+                static uint8_t *bitbuf8 = nullptr;
+                static uint8_t bitsz7 = 14;
+                static uint8_t bitsz8 = SysExInputStream::unbitizedSize(bitsz7);
+                if (bitbuf7 == nullptr) {
+                    bitbuf7 = new uint8_t[bitsz7];
+                    bitbuf8 = new uint8_t[bitsz8];
+                }
+
+                sysex.readData(bitbuf7, bitsz7);
+                uint8_t exp_chksum = sysex.readUnsigned7();
+                uint8_t chksum = SysExInputStream::unbitize(bitbuf7, bitsz7, bitbuf8);
+                if (exp_chksum != chksum) {
+                    LOG_1("sysex:: fingerstream invalid chk " << chksum << " != " << exp_chksum);
+                }
+
+
+                // fingerstream
+                EraeApiCallback::TouchAction a = static_cast<EraeApiCallback::TouchAction>(dat1 >> 4);
+                unsigned touch = dat1 & 0b0001111;
+                unsigned zone = dat2;
+                float x = 0, y = 0, z = 0;
+
+                float *float_data = static_cast<float *>(static_cast<void *>(bitbuf8));
+                x = float_data[0];
+                y = float_data[1];
+                z = float_data[2];
+
+                LOG_1("sysex:: finger zone " << zone << " a " << (int) a << " touch " << touch << " x " << x << " y " << y << " z " << z);
+                parent_->onTouch(zone, a, touch, x, y, z);
+            }
+
+
+        } else {
+            LOG_1("sysex:: invalid sysex prefix");
+        }
+    } else {
+        LOG_1("sysex:: invalid sysex");
+    }
 }
 
 

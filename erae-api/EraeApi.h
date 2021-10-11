@@ -18,7 +18,13 @@ public:
     virtual void onError(unsigned err, const char *errStr) { ; }
 
     // api
-    void onTouch(unsigned zone, unsigned touch, float x, float y, float z) { ; }
+    enum TouchAction {
+        START,
+        SLIDE,
+        END
+    };
+
+    void onTouch(unsigned zone, TouchAction a, unsigned touch, float x, float y, float z) { ; }
 
     void onZoneData(unsigned zone, unsigned width, unsigned height) { ; }
 
@@ -31,6 +37,7 @@ public:
 
     virtual void pitchbend(unsigned ch, int v) { ; } // +/- 8192
     virtual void ch_pressure(unsigned ch, unsigned v) { ; }
+
 };
 
 class EraeApiImpl_;

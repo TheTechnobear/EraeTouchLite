@@ -10,6 +10,7 @@ set(ET_API_SRC
         MidiDevice.h
         RtMidiDevice.cpp
         RtMidiDevice.h
+        SysExStream.h
         )
 
 include_directories(
