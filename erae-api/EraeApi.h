@@ -18,13 +18,11 @@ public:
     virtual void onError(unsigned err, const char *errStr) { ; }
 
     // api
-    enum TouchAction {
-        START,
-        SLIDE,
-        END
-    };
+    virtual void onStartTouch(unsigned zone, unsigned touch, float x, float y, float z) { ; }
 
-    virtual void onTouch(unsigned zone, TouchAction a, unsigned touch, float x, float y, float z) { ; }
+    virtual void onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z) { ; }
+
+    virtual void onEndTouch(unsigned zone, unsigned touch, float x, float y, float z) { ; }
 
     virtual void onZoneData(unsigned zone, unsigned width, unsigned height) { ; }
 

@@ -37,7 +37,7 @@ private:
     EraeApiImpl_ *parent_;
 };
 
-constexpr uint8_t RECV_PREFIX[] =   {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01, 0x44};
+constexpr uint8_t RECV_PREFIX[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01, 0x44};
 
 class EraeApiImpl_ {
 public:
@@ -66,7 +66,9 @@ private:
     friend class EraeApiMidiCallback;
 
     // callbacks
-    void onTouch(unsigned zone, EraeApiCallback::TouchAction a, unsigned touch, float x, float y, float z);
+    void onStartTouch(unsigned zone, unsigned touch, float x, float y, float z);
+    void onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z);
+    void onEndTouch(unsigned zone, unsigned touch, float x, float y, float z);
     void onZoneData(unsigned zone, unsigned width, unsigned height);
 
     void noteOn(unsigned ch, unsigned n, unsigned v);
@@ -102,9 +104,21 @@ void EraeApiImpl_::stop() {
     device_.deinit();
 }
 
-void EraeApiImpl_::onTouch(unsigned zone, EraeApiCallback::TouchAction a, unsigned touch, float x, float y, float z) {
+void EraeApiImpl_::onStartTouch(unsigned zone, unsigned touch, float x, float y, float z) {
     for (auto cb: callbacks_) {
-        cb->onTouch(zone, a, touch, x, y, z);
+        cb->onStartTouch(zone, touch, x, y, z);
+    }
+}
+
+void EraeApiImpl_::onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z) {
+    for (auto cb: callbacks_) {
+        cb->onSlideTouch(zone, touch, x, y, z);
+    }
+}
+
+void EraeApiImpl_::onEndTouch(unsigned zone, unsigned touch, float x, float y, float z) {
+    for (auto cb: callbacks_) {
+        cb->onEndTouch(zone, touch, x, y, z);
     }
 }
 
@@ -324,10 +338,10 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
             unsigned dat2 = sysex.readUnsigned7();
             if (dat1 == 0x7f) {
                 // not fingerstream
-                    unsigned zone = dat2;
-                    unsigned w = sysex.readUnsigned7();
-                    unsigned h = sysex.readUnsigned7();
-                    parent_->onZoneData(zone, w, h);
+                unsigned zone = dat2;
+                unsigned w = sysex.readUnsigned7();
+                unsigned h = sysex.readUnsigned7();
+                parent_->onZoneData(zone, w, h);
 //                if (dat2 == 0x01) {
 //                    // boundary reply
 //                    unsigned zone = sysex.readUnsigned7();
@@ -356,7 +370,6 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
 
 
                 // fingerstream
-                EraeApiCallback::TouchAction a = static_cast<EraeApiCallback::TouchAction>(dat1 >> 4);
                 unsigned touch = dat1 & 0b0001111;
                 unsigned zone = dat2;
                 float x = 0, y = 0, z = 0;
@@ -366,8 +379,20 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
                 y = float_data[1];
                 z = float_data[2];
 
-//                LOG_1("sysex:: finger zone " << zone << " a " << (int) a << " touch " << touch << " x " << x << " y " << y << " z " << z);
-                parent_->onTouch(zone, a, touch, x, y, z);
+                int8_t a = dat1 >> 4;
+                switch (a) {
+                    case 0 :
+                        parent_->onStartTouch(zone, touch, x, y, z);
+                        break;
+                    case 1 :
+                        parent_->onSlideTouch(zone, touch, x, y, z);
+                        break;
+                    case 2 :
+                        parent_->onEndTouch(zone, touch, x, y, z);
+                        break;
+                    default:
+                        break;
+                }
             }
 
 
@@ -448,7 +473,7 @@ void EraeApi::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, unsig
     impl_->drawImage(zone, x, y, w, h, rgb);
 }
 
-void EraeApi::addCallback(std::shared_ptr<EraeApiCallback>cb) {
+void EraeApi::addCallback(std::shared_ptr<EraeApiCallback> cb) {
     impl_->addCallback(cb);
 }
 

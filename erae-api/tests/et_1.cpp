@@ -44,15 +44,23 @@ int main(int argc, char **argv) {
 
 class TestCallback : public EraeApi::EraeApiCallback {
 public:
-    void onTouch(unsigned zone, TouchAction a, unsigned touch, float x, float y, float z) {
-        std::cout << "onTouch : zone " << zone << " action " << (int) a << "  touch:  " << touch << " -  " << x << " , " << y << " , " << z
-                  << std::endl;
+    void onStartTouch(unsigned zone, unsigned touch, float x, float y, float z) override {
+        std::cout << "onStartTouch : zone " << zone << "  touch:  " << touch << " -  " << x << " , " << y << " , " << z << std::endl;
     }
 
-    void onZoneData(unsigned zone, unsigned width, unsigned height) {
+    void onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z) override {
+        std::cout << "onSlideTouch : zone " << zone << "  touch:  " << touch << " -  " << x << " , " << y << " , " << z << std::endl;
+    }
+
+    void onEndTouch(unsigned zone, unsigned touch, float x, float y, float z) override {
+        std::cout << "onEndTouch : zone " << zone << "  touch:  " << touch << " -  " << x << " , " << y << " , " << z << std::endl;
+    }
+
+    void onZoneData(unsigned zone, unsigned width, unsigned height) override {
         std::cout << "onZoneData : zone " << zone << " , " << width << " ,  " << height << std::endl;
     }
 };
+
 
 void Test::start() {
     unsigned zone = 1;

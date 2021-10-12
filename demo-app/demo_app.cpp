@@ -36,8 +36,16 @@ class DemoCallback : public EraeApi::EraeApiCallback {
 public:
     explicit DemoCallback(DemoApp *app) : app_(app) {}
 
-    void onTouch(unsigned zone, TouchAction a, unsigned touch, float x, float y, float z) {
-        app_->onTouch(zone, a, touch, x, y, z);
+    void onStartTouch(unsigned zone, unsigned touch, float x, float y, float z) {
+        app_->onStartTouch(zone, touch, x, y, z);
+    }
+
+    void onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z) {
+        app_->onSlideTouch(zone, touch, x, y, z);
+    }
+
+    void onEndTouch(unsigned zone, unsigned touch, float x, float y, float z) {
+        app_->onEndTouch(zone, touch, x, y, z);
     }
 
     void onZoneData(unsigned zone, unsigned width, unsigned height) {
@@ -72,22 +80,6 @@ void DemoApp::process() {
     usleep(100 * 1000);
 }
 
-void DemoApp::onTouch(unsigned zone, EraeApi::EraeApiCallback::TouchAction a, unsigned touch, float x, float y, float z) {
-    switch (a) {
-        case EraeApi::EraeApiCallback::TouchAction::START :
-            onStartTouch(touch, x, y, z);
-            break;
-        case EraeApi::EraeApiCallback::TouchAction::SLIDE :
-            onSlideTouch(touch, x, y, z);
-            break;
-        case EraeApi::EraeApiCallback::TouchAction::END :
-            onEndTouch(touch, x, y, z);
-            break;
-        default:
-            break;
-    }
-}
-
 void DemoApp::onZoneData(unsigned zone, unsigned width, unsigned height) {
     if (zone_ == zone) {
         zoneWidth_ = width;
@@ -95,7 +87,7 @@ void DemoApp::onZoneData(unsigned zone, unsigned width, unsigned height) {
     }
 }
 
-static constexpr unsigned MAXCOLOUR=12;
+static constexpr unsigned MAXCOLOUR = 12;
 static constexpr unsigned colours[MAXCOLOUR] = {
     0x007F00, 0x7F0000, 0x00007F,
     0x4F7F4F, 0x7F4F4F, 0x4F4F7F,
@@ -104,15 +96,18 @@ static constexpr unsigned colours[MAXCOLOUR] = {
 };
 
 
-void DemoApp::onStartTouch(unsigned touch, float x, float y, float z) {
+void DemoApp::onStartTouch(unsigned zone, unsigned touch, float x, float y, float z) {
+    if (zone != zone_) return;
     unsigned c = colours[touch % MAXCOLOUR];
     trails_.push_back(TrailData(x, y, c));
 }
 
-void DemoApp::onSlideTouch(unsigned touch, float x, float y, float z) {
-    unsigned nx=(unsigned) x;
+void DemoApp::onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z) {
+    if (zone != zone_) return;
+
+    unsigned nx = (unsigned) x;
     for (auto &t: trails_) {
-        if(t.X_==nx) {
+        if (t.X_ == nx) {
             return;
         }
     }
@@ -121,7 +116,7 @@ void DemoApp::onSlideTouch(unsigned touch, float x, float y, float z) {
     trails_.push_back(TrailData(x, y, c));
 }
 
-void DemoApp::onEndTouch(unsigned touch, float x, float y, float z) {
+void DemoApp::onEndTouch(unsigned zone, unsigned touch, float x, float y, float z) {
 
 }
 
