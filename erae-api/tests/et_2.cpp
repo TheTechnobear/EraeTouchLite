@@ -95,6 +95,12 @@ void Test::process() {
         unsigned img[4] = {0xFF0000, 0xFFFFFF, 0x00FF00, 0x0000FF};
         api_->drawImage(zone, 0, 0, 2, 2, img);
     }
+    {
+        unsigned zone = 4;
+        api_->clearZone(zone);
+        unsigned img[4] = {0xFF0000, 0xFFFFFF, 0x00FF00, 0x0000FF};
+        api_->drawImage(zone, 0, 0, 2, 2, img);
+    }
     while (keepRunning) {
         api_->process();
     }

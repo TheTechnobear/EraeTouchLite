@@ -32,10 +32,31 @@ int main(int argc, char **argv) {
 }
 
 ///////////////////////////////////////////////
+class DemoCallback : public EraeApi::EraeApiCallback {
+public:
+    explicit DemoCallback(DemoApp *app) : app_(app) {}
+
+    void onTouch(unsigned zone, TouchAction a, unsigned touch, float x, float y, float z) {
+        app_->onTouch(zone, a, touch, x, y, z);
+    }
+
+    void onZoneData(unsigned zone, unsigned width, unsigned height) {
+        app_->onZoneData(zone, width, height);
+    }
+
+private:
+    DemoApp *app_;
+};
+
 
 void DemoApp::start() {
     api_ = std::make_shared<EraeApi::EraeApi>(device_);
+    api_->addCallback(std::make_shared<DemoCallback>(this));
     api_->start();
+    api_->disableApi(); // just in case something is already started!
+    api_->enableApi();
+    api_->requestZoneBoundary(zone_);
+    api_->clearZone(zone_);
 }
 
 void DemoApp::stop() {
@@ -43,6 +64,109 @@ void DemoApp::stop() {
 }
 
 void DemoApp::process() {
-    std::cout << "demo app" << std::endl;
+    advanceTrails();
     api_->process();
+    drawTrails();
+    api_->process();
+    cleanTrails();
+    usleep(100 * 1000);
+}
+
+void DemoApp::onTouch(unsigned zone, EraeApi::EraeApiCallback::TouchAction a, unsigned touch, float x, float y, float z) {
+    switch (a) {
+        case EraeApi::EraeApiCallback::TouchAction::START :
+            onStartTouch(touch, x, y, z);
+            break;
+        case EraeApi::EraeApiCallback::TouchAction::SLIDE :
+            onSlideTouch(touch, x, y, z);
+            break;
+        case EraeApi::EraeApiCallback::TouchAction::END :
+            onEndTouch(touch, x, y, z);
+            break;
+        default:
+            break;
+    }
+}
+
+void DemoApp::onZoneData(unsigned zone, unsigned width, unsigned height) {
+    if (zone_ == zone) {
+        zoneWidth_ = width;
+        zoneHeight_ = height;
+    }
+}
+
+static constexpr unsigned MAXCOLOUR=12;
+static constexpr unsigned colours[MAXCOLOUR] = {
+    0x007F00, 0x7F0000, 0x00007F,
+    0x4F7F4F, 0x7F4F4F, 0x4F4F7F,
+    0x4F5F00, 0x7F4F00, 0x4F2F7F,
+    0x7F7F4F, 0x7F7F4F, 0x7F4F7F
+};
+
+
+void DemoApp::onStartTouch(unsigned touch, float x, float y, float z) {
+    unsigned c = colours[touch % MAXCOLOUR];
+    trails_.push_back(TrailData(x, y, c));
+}
+
+void DemoApp::onSlideTouch(unsigned touch, float x, float y, float z) {
+    unsigned nx=(unsigned) x;
+    for (auto &t: trails_) {
+        if(t.X_==nx) {
+            return;
+        }
+    }
+
+    unsigned c = colours[touch % MAXCOLOUR];
+    trails_.push_back(TrailData(x, y, c));
+}
+
+void DemoApp::onEndTouch(unsigned touch, float x, float y, float z) {
+
+}
+
+void DemoApp::drawTrails() {
+    int8_t step = 0x10;
+    for (auto &t: trails_) {
+        if (t.Y_ == 0x7f) {
+            for (unsigned y = 0; y <= t.startY_; y++) {
+                api_->drawPixel(zone_, t.X_, y, 0x000000);
+            }
+        } else {
+            unsigned sy = t.startY_, ey = t.Y_;
+            unsigned c = t.colour_;
+            for (unsigned y = ey; y <= sy; y++) {
+                api_->drawPixel(zone_, t.X_, y, c);
+
+                int8_t r = (c & 0xFF0000) >> 16;
+                int8_t g = (c & 0x00FF00) >> 8;
+                int8_t b = (c & 0x0000FF);
+                if (r > step) r -= step; else r = 0;
+                if (g > step) g -= step; else g = 0;
+                if (b > step) b -= step; else b = 0;
+                c = (r << 16) + (g << 8) + b;
+            }
+        }
+    }
+}
+
+
+void DemoApp::advanceTrails() {
+    for (auto &t: trails_) {
+        if (t.Y_ == 0) {
+            t.Y_ = 0x7f; // schedule to remove
+        } else {
+            t.Y_--;
+        }
+    }
+}
+
+void DemoApp::cleanTrails() {
+    for (auto it = trails_.begin(); it != trails_.end();) {
+        if (it->Y_ == 0x7f) {
+            it = trails_.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }

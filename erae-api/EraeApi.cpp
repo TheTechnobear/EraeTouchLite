@@ -250,7 +250,7 @@ void EraeApiImpl_::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, 
     static uint8_t *bitbuf8 = nullptr;
     static size_t maxsz8 = 0;
     if (bitbuf7 == nullptr) {
-        unsigned sz = 42 * 16;
+        unsigned sz = 42 * 24;
         maxsz8 = sz * 3;
         maxsz7 = SysExOutputStream::bitizedSize(maxsz8);
         bitbuf7 = new uint8_t[maxsz7];
