@@ -24,7 +24,7 @@ namespace EraeApi {
 
 class EraeApiMidiCallback : public MidiCallback {
 public:
-    explicit EraeApiMidiCallback(EraeApiImpl_ *parent) : parent_(parent) {  }
+    explicit EraeApiMidiCallback(EraeApiImpl_ *parent) : parent_(parent) {}
 
     void noteOn(unsigned ch, unsigned n, unsigned v) override;
     void noteOff(unsigned ch, unsigned n, unsigned v) override;
@@ -37,8 +37,7 @@ private:
     EraeApiImpl_ *parent_;
 };
 
-constexpr uint8_t RECV_PREFIX[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01, 0x44};
-
+constexpr uint8_t RECV_PREFIX[] =   {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01, 0x44};
 
 class EraeApiImpl_ {
 public:
@@ -155,7 +154,7 @@ void EraeApiImpl_::enableApi() {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.buffer(), sysex.size());
+        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("enableApi() - failed");
     }
@@ -168,7 +167,7 @@ void EraeApiImpl_::disableApi() {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.buffer(), sysex.size());
+        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("disableApi() - failed");
     }
@@ -182,7 +181,7 @@ void EraeApiImpl_::requestZoneBoundary(unsigned zone) {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.buffer(), sysex.size());
+        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("requestZoneBoundary() - failed");
     }
@@ -197,7 +196,7 @@ void EraeApiImpl_::clearZone(unsigned zone) {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.buffer(), sysex.size());
+        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("clearZone() - failed");
     }
@@ -216,7 +215,7 @@ void EraeApiImpl_::drawPixel(unsigned zone, unsigned x, unsigned y, unsigned rgb
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.buffer(), sysex.size());
+        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("drawPixel() - failed");
     }
@@ -238,7 +237,7 @@ void EraeApiImpl_::drawRectangle(unsigned zone, unsigned x, unsigned y, unsigned
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.buffer(), sysex.size());
+        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("drawRectangle() - failed");
     }
@@ -247,13 +246,13 @@ void EraeApiImpl_::drawRectangle(unsigned zone, unsigned x, unsigned y, unsigned
 
 void EraeApiImpl_::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, unsigned h, unsigned *rgb) {
     static uint8_t *bitbuf7 = nullptr;
-    static uint8_t maxsz7 = 0;
+    static size_t maxsz7 = 0;
     static uint8_t *bitbuf8 = nullptr;
-    static uint8_t maxsz8 = 0;
+    static size_t maxsz8 = 0;
     if (bitbuf7 == nullptr) {
         unsigned sz = 42 * 16;
-        unsigned maxsz8 = sz * 3;
-        unsigned maxsz7 = SysExOutputStream::bitizedSize(maxsz8);
+        maxsz8 = sz * 3;
+        maxsz7 = SysExOutputStream::bitizedSize(maxsz8);
         bitbuf7 = new uint8_t[maxsz7];
         bitbuf8 = new uint8_t[maxsz8];
     }
@@ -292,7 +291,7 @@ void EraeApiImpl_::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, 
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.buffer(), sysex.size());
+        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("drawImage() - failed");
     }
@@ -325,15 +324,19 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
             unsigned dat2 = sysex.readUnsigned7();
             if (dat1 == 0x7f) {
                 // not fingerstream
-                if (dat2 == 0x01) {
-                    // boundary reply
-                    unsigned zone = sysex.readUnsigned7();
+                    unsigned zone = dat2;
                     unsigned w = sysex.readUnsigned7();
                     unsigned h = sysex.readUnsigned7();
                     parent_->onZoneData(zone, w, h);
-                } else {
-                    LOG_1("sysex:: valid prefix, non finger, but unknown msg" << dat1 << ", " << dat2);
-                }
+//                if (dat2 == 0x01) {
+//                    // boundary reply
+//                    unsigned zone = sysex.readUnsigned7();
+//                    unsigned w = sysex.readUnsigned7();
+//                    unsigned h = sysex.readUnsigned7();
+//                    parent_->onZoneData(zone, w, h);
+//                } else {
+//                    LOG_1("sysex:: valid prefix, non finger, but unknown msg" << (unsigned) dat1 << ", " << (unsigned) dat2);
+//                }
             } else {
                 static uint8_t *bitbuf7 = nullptr;
                 static uint8_t *bitbuf8 = nullptr;
@@ -348,7 +351,7 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
                 uint8_t exp_chksum = sysex.readUnsigned7();
                 uint8_t chksum = SysExInputStream::unbitize(bitbuf7, bitsz7, bitbuf8);
                 if (exp_chksum != chksum) {
-                    LOG_1("sysex:: fingerstream invalid chk " << chksum << " != " << exp_chksum);
+                    LOG_1("sysex:: fingerstream invalid chk " << (unsigned) chksum << " != " << (unsigned) exp_chksum);
                 }
 
 
@@ -363,13 +366,13 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
                 y = float_data[1];
                 z = float_data[2];
 
-                LOG_1("sysex:: finger zone " << zone << " a " << (int) a << " touch " << touch << " x " << x << " y " << y << " z " << z);
+//                LOG_1("sysex:: finger zone " << zone << " a " << (int) a << " touch " << touch << " x " << x << " y " << y << " z " << z);
                 parent_->onTouch(zone, a, touch, x, y, z);
             }
 
 
         } else {
-            LOG_1("sysex:: invalid sysex prefix");
+//            LOG_1("sysex:: not from this lib");
         }
     } else {
         LOG_1("sysex:: invalid sysex");
@@ -443,6 +446,10 @@ void EraeApi::drawRectangle(unsigned zone, unsigned x, unsigned y, unsigned w, u
 
 void EraeApi::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, unsigned h, unsigned *rgb) {
     impl_->drawImage(zone, x, y, w, h, rgb);
+}
+
+void EraeApi::addCallback(std::shared_ptr<EraeApiCallback>cb) {
+    impl_->addCallback(cb);
 }
 
 

@@ -77,14 +77,14 @@ RtMidiDevice::RtMidiDevice(unsigned inQueueSize, unsigned outQueueSize) : MidiDe
     LOG_0("Using rtmidi " << RtMidi::getVersion());
 
     try {
-        midiInDevice_.reset(new RtMidiIn(RtMidi::Api::UNSPECIFIED, "E1 MIDI IN DEVICE"));
+        midiInDevice_.reset(new RtMidiIn(RtMidi::Api::UNSPECIFIED, "ET MIDI IN DEVICE"));
     } catch (RtMidiError &error) {
         midiInDevice_.reset();
         LOG_0("RtMidiDevice RtMidiIn ctor error:" << error.what());
     }
 
     try {
-        midiOutDevice_.reset(new RtMidiOut(RtMidi::Api::UNSPECIFIED, "E1 MIDI OUT DEVICE"));
+        midiOutDevice_.reset(new RtMidiOut(RtMidi::Api::UNSPECIFIED, "ET MIDI OUT DEVICE"));
     } catch (RtMidiError &error) {
         midiOutDevice_.reset();
         LOG_0("RtMidiDevice RtMidiOut ctor error:" << error.what());

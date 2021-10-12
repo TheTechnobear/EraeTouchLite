@@ -57,7 +57,7 @@ public:
     SysExOutputStream &operator=(SysExOutputStream &) = delete;
 
     SysExOutputStream &operator<<(unsigned b) {
-        if (size_ < max_sz_ - 1) {
+        if (buf_ && (size_ + 1) < max_sz_) {
             buf_[size_++] = b;
         }
         return *this;
@@ -79,6 +79,13 @@ public:
     unsigned size() const { return size_; }
 
     unsigned char *buffer() { return buf_; }
+
+    unsigned char *releaseBuffer() {
+        unsigned char* buf=buf_;
+        buf_= nullptr;
+        max_sz_ = 0;
+        return buf;
+    }
 
     void addHeader(unsigned apimsg) {
         for (auto i = 0; i < sizeof(E_Id); i++) {

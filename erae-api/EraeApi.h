@@ -24,9 +24,9 @@ public:
         END
     };
 
-    void onTouch(unsigned zone, TouchAction a, unsigned touch, float x, float y, float z) { ; }
+    virtual void onTouch(unsigned zone, TouchAction a, unsigned touch, float x, float y, float z) { ; }
 
-    void onZoneData(unsigned zone, unsigned width, unsigned height) { ; }
+    virtual void onZoneData(unsigned zone, unsigned width, unsigned height) { ; }
 
     // midi
     virtual void noteOn(unsigned ch, unsigned n, unsigned v) { ; }

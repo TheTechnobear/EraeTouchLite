@@ -55,13 +55,16 @@ public:
 };
 
 void Test::start() {
-    unsigned zone = 1;
     api_ = std::make_shared<EraeApi::EraeApi>(device_);
     api_->addCallback(std::make_shared<TestCallback>());
     api_->start();
     api_->disableApi();
     api_->enableApi();
-    api_->requestZoneBoundary(zone);
+    api_->requestZoneBoundary(0);
+    api_->requestZoneBoundary(1);
+    api_->requestZoneBoundary(2);
+    api_->requestZoneBoundary(3);
+    api_->requestZoneBoundary(4);
     api_->process();
 }
 
@@ -73,15 +76,25 @@ void Test::stop() {
 
 void Test::process() {
     std::cout << "test app" << std::endl;
-    unsigned zone = 1;
-    api_->clearZone(zone);
-    api_->drawPixel(zone, 0, 0, 0xFF0000);
-    api_->drawPixel(zone, 1, 0, 0x00FF00);
-    api_->drawPixel(zone, 0, 1, 0x0000FF);
-    api_->drawPixel(zone, 1, 1, 0xFFFFFF);
-    api_->drawRectangle(zone, 0, 5, 5, 10, 0xFF0000);
-    unsigned img[4] = {0xFF0000, 0xFFFFFF, 0x00FF00, 0x0000FF};
-    api_->drawImage(zone, 10, 5, 2, 2, img);
+    {
+        unsigned zone = 1;
+        api_->clearZone(zone);
+        api_->drawPixel(zone, 0, 0, 0xFF0000);
+        api_->drawPixel(zone, 1, 0, 0x00FF00);
+        api_->drawPixel(zone, 0, 1, 0x0000FF);
+        api_->drawPixel(zone, 1, 1, 0xFFFFFF);
+    }
+    {
+        unsigned zone = 2;
+        api_->clearZone(zone);
+        api_->drawRectangle(zone, 5, 0, 5, 5, 0xFF0000);
+    }
+    {
+        unsigned zone = 3;
+        api_->clearZone(zone);
+        unsigned img[4] = {0xFF0000, 0xFFFFFF, 0x00FF00, 0x0000FF};
+        api_->drawImage(zone, 0, 0, 2, 2, img);
+    }
     while (keepRunning) {
         api_->process();
     }
