@@ -260,7 +260,7 @@ private:
         if (pos < size_) {
             return buf_[pos];
         }
-        LOG_1("SysExInputStream read past end" << pos);
+//        LOG_1("SysExInputStream read past end" << pos);
         return 0;
     }
 
