@@ -1,6 +1,7 @@
 #include "EraeApi.h"
 
 #include <iostream>
+#include <utility>
 //#define LOG_0(x)
 #define LOG_0(x) std::cout << x << std::endl;
 //#define LOG_1(x)
@@ -41,7 +42,7 @@ constexpr uint8_t RECV_PREFIX[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01, 0x4
 
 class EraeApiImpl_ {
 public:
-    explicit EraeApiImpl_(const std::string &device);
+    explicit EraeApiImpl_(std::string device);
 
     ~EraeApiImpl_() = default;
     void start();
@@ -49,7 +50,7 @@ public:
 
     unsigned process();
 
-    void addCallback(std::shared_ptr<EraeApiCallback> cb) { callbacks_.push_back(cb); }
+    void addCallback(const std::shared_ptr<EraeApiCallback> &cb) { callbacks_.push_back(cb); }
 
 
     // requests
@@ -86,75 +87,75 @@ private:
 
 
 //---------------------
-EraeApiImpl_::EraeApiImpl_(const std::string &device) : devname_(device), midiCallback_(this) {
+EraeApiImpl_::EraeApiImpl_(std::string device) : devname_(std::move(device)), midiCallback_(this) {
 }
 
 void EraeApiImpl_::start() {
     device_.init(devname_.c_str(), devname_.c_str());
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->onInit();
     }
 }
 
 
 void EraeApiImpl_::stop() {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->onDeinit();
     }
     device_.deinit();
 }
 
 void EraeApiImpl_::onStartTouch(unsigned zone, unsigned touch, float x, float y, float z) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->onStartTouch(zone, touch, x, y, z);
     }
 }
 
 void EraeApiImpl_::onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->onSlideTouch(zone, touch, x, y, z);
     }
 }
 
 void EraeApiImpl_::onEndTouch(unsigned zone, unsigned touch, float x, float y, float z) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->onEndTouch(zone, touch, x, y, z);
     }
 }
 
 void EraeApiImpl_::onZoneData(unsigned zone, unsigned width, unsigned height) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->onZoneData(zone, width, height);
     }
 }
 
 
 void EraeApiImpl_::noteOn(unsigned ch, unsigned n, unsigned v) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->noteOn(ch, n, v);
     }
 }
 
 void EraeApiImpl_::noteOff(unsigned ch, unsigned n, unsigned v) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->noteOff(ch, n, v);
     }
 }
 
 void EraeApiImpl_::cc(unsigned ch, unsigned cc, unsigned v) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->cc(ch, cc, v);
     }
 }
 
 void EraeApiImpl_::pitchbend(unsigned ch, int v) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->pitchbend(ch, v);
     }
 }
 
 void EraeApiImpl_::ch_pressure(unsigned ch, unsigned v) {
-    for (auto cb: callbacks_) {
+    for (const auto &cb: callbacks_) {
         cb->ch_pressure(ch, v);
     }
 }
@@ -316,7 +317,7 @@ unsigned EraeApiImpl_::process(void) {
     unsigned count = 0;
     device_.processIn(midiCallback_);
     device_.processOut();
-    return count;
+    return count > 0;
 }
 
 void EraeApiMidiCallback::process(const MidiMsg &msg) {
@@ -338,19 +339,15 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
             unsigned dat2 = sysex.readUnsigned7();
             if (dat1 == 0x7f) {
                 // not fingerstream
-                unsigned zone = dat2;
-                unsigned w = sysex.readUnsigned7();
-                unsigned h = sysex.readUnsigned7();
-                parent_->onZoneData(zone, w, h);
-//                if (dat2 == 0x01) {
-//                    // boundary reply
-//                    unsigned zone = sysex.readUnsigned7();
-//                    unsigned w = sysex.readUnsigned7();
-//                    unsigned h = sysex.readUnsigned7();
-//                    parent_->onZoneData(zone, w, h);
-//                } else {
-//                    LOG_1("sysex:: valid prefix, non finger, but unknown msg" << (unsigned) dat1 << ", " << (unsigned) dat2);
-//                }
+                if (dat2 == 0x01) {
+                    // boundary reply
+                    unsigned zone = sysex.readUnsigned7();
+                    unsigned w = sysex.readUnsigned7();
+                    unsigned h = sysex.readUnsigned7();
+                    parent_->onZoneData(zone, w, h);
+                } else {
+                    LOG_1("sysex:: valid prefix, non finger, but unknown msg" << (unsigned) dat1 << ", " << (unsigned) dat2);
+                }
             } else {
                 static uint8_t *bitbuf7 = nullptr;
                 static uint8_t *bitbuf8 = nullptr;
@@ -473,7 +470,7 @@ void EraeApi::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, unsig
     impl_->drawImage(zone, x, y, w, h, rgb);
 }
 
-void EraeApi::addCallback(std::shared_ptr<EraeApiCallback> cb) {
+void EraeApi::addCallback(const std::shared_ptr<EraeApiCallback>& cb) {
     impl_->addCallback(cb);
 }
 

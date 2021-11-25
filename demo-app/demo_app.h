@@ -32,7 +32,7 @@ private:
 
     std::string device_;
     std::shared_ptr<EraeApi::EraeApi> api_;
-    unsigned zone_ = 1;
+    unsigned zone_ = 10;
     unsigned zoneWidth_ = 0x7f, zoneHeight_ = 0x7f;
     std::vector<TrailData> trails_;
 };

@@ -91,7 +91,6 @@ bool MidiDevice::processOut(unsigned maxMsgs) {
 }
 
 void MidiDevice::deinit() {
-    return;
 }
 
 bool MidiDevice::isActive() {

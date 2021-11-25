@@ -84,6 +84,7 @@ void DemoApp::onZoneData(unsigned zone, unsigned width, unsigned height) {
     if (zone_ == zone) {
         zoneWidth_ = width;
         zoneHeight_ = height;
+        std::cout << "onZoneData : zone " << zone << " , " << width << " ,  " << height << std::endl;
     }
 }
 

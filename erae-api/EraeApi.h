@@ -58,7 +58,7 @@ public:
     unsigned process(); // call periodically for incoming msgs
 
 
-    void addCallback(std::shared_ptr<EraeApiCallback>);
+    void addCallback(const std::shared_ptr<EraeApiCallback>&);
 private:
     EraeApiImpl_ *impl_;
 };

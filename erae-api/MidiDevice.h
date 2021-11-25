@@ -140,7 +140,7 @@ protected:
     virtual bool send(const MidiMsg &msg) = 0;
 
     bool active_;
-    bool virtualOpen_;
+    bool virtualOpen_=false;
 
     moodycamel::ReaderWriterQueue<MidiMsg> outQueue_;
     moodycamel::ReaderWriterQueue<MidiMsg> inQueue_;
