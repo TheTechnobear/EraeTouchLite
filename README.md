@@ -1,2 +1,2 @@
-# EraeTouchApps
-Apps and Libraries for the Erae Touch 
+# EraeTouchLite
+a c++ api for the erae touch api zone mode
