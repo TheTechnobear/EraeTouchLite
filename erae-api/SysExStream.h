@@ -6,16 +6,23 @@
 
 namespace EraeApi {
 
-static constexpr uint8_t E_Id[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01};
+static constexpr uint8_t E_Id[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00};
+
+static constexpr uint8_t E_ERAE_TOUCH = 0x01;
+static constexpr uint8_t E_ERAE2 = 0x02;
+
 static constexpr uint8_t E_Midi_Id = 0x01; // currently, always 1
 static constexpr uint8_t E_Service = 0x01; // touch service
 static constexpr uint8_t E_API = 0x04; // api
 
+static constexpr uint8_t E_SYSEX_SZ = 13;  // 0xF0 E_Id  Device  E_Midi_Id E_Servic E_API 0xF7
+
 // FO  E_ID E_MIDI_ID E_SERVICE E_API E_API_MSG data F7
 
 // example requests
-// enable :     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x01 RECEIVER PREFIX BYTES 0xF7
+// enable :     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01(/ 0x02) 0x01 0x01 0x04 0x01 RECEIVER PREFIX BYTES 0xF7
 // disable:     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x02 0xF7
+// enable :     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01(/ 0x02) 0x01 0x01 0x04 0x07f RECEIVER PREFIX BYTES 0xF7
 // boundary     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x10 ZONE 0xF7
 // clear:       0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x20 ZONE 0xF7
 // d pixel:     0xF0 0x00 0x21 0x50 0x00 0x01 0x00 0x01 0x01 0x01 0x04 0x21 ZONE XPOS YPOS RED GREEN BLUE 0xF7
@@ -25,6 +32,7 @@ static constexpr uint8_t E_API = 0x04; // api
 // example replies
 // finger:      0xF0 RECEIVER PREFIX BYTES DAT1 DAT2 XYZ1 ... XYZ14 CHKS 0xF7
 // boundary rep:0xF0 RECEIVER PREFIX BYTES 0x7F 0x01 ZONE Width Height 0xF7
+// version rep:0xF0 RECEIVER PREFIX BYTES 0x7F 0x02 version 0xF7
 
 
 // finger
@@ -41,12 +49,12 @@ enum SysExMsgs {
     E_D_PIXEL = 0x21,
     E_D_RECT = 0x22,
     E_D_IMG = 0x23,
-    E_SYSEX_MAX
+    E_VERSION = 0x7f
 };
 
 class SysExOutputStream {
 public:
-    explicit SysExOutputStream(unsigned max_sz) : size_(0), buf_(new unsigned char[max_sz]), max_sz_(max_sz) { ; }
+    explicit SysExOutputStream(unsigned max_sz, uint8_t ed = E_ERAE2) : size_(0), buf_(new unsigned char[max_sz]), max_sz_(max_sz), device_(ed) { ; }
 
     ~SysExOutputStream() {
         delete[] buf_;
@@ -91,6 +99,7 @@ public:
         for (auto i = 0; i < sizeof(E_Id); i++) {
             *this << E_Id[i];
         }
+        *this << device_;
         *this << E_Midi_Id;
         *this << E_Service;
         *this << E_API;
@@ -160,6 +169,7 @@ private:
     unsigned char *buf_;
     unsigned size_ = 0;
     unsigned max_sz_ = 0;
+    uint8_t device_ = E_ERAE2;
 };
 
 
@@ -226,6 +236,7 @@ public:
 
     unsigned char read() {
         unsigned char v = peek(pos_);
+        // LOG_1("sysex:: read" << (unsigned) v );
         pos_++;
         return v;
     }
@@ -239,8 +250,15 @@ public:
         return;
     }
 
-    static constexpr size_t unbitizedSize(size_t len) {
+    static constexpr size_t bitized7Size(size_t len) {
+        return len / 7 * 8 + (len % 7 ? 1 + len % 7 : 0);
+    // return length // 7 * 8 + ((1 + length % 7) if (length % 7 > 0) else 0)
+    }
+
+
+    static constexpr size_t unbitized7Size(size_t len) {
         return len / 8 * 7 + (len % 8 ? len % 8 - 1 : 0);
+    // return length // 8 * 7 + ((length % 8 - 1) if (length % 8 > 0) else 0)
     }
 
     static constexpr uint8_t unbitize(const uint8_t *in, size_t inlen, uint8_t *out) {

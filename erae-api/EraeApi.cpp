@@ -7,6 +7,8 @@
 //#define LOG_1(x)
 #define LOG_1(x) std::cerr << x << std::endl;
 
+#define ERAR_API_2 1 
+
 
 #ifdef USE_LIBRE_MIDI
 #include "LibreMidiDevice.h"
@@ -38,7 +40,8 @@ private:
     EraeApiImpl_ *parent_;
 };
 
-constexpr uint8_t RECV_PREFIX[] = {0x00, 0x21, 0x50, 0x00, 0x01, 0x00, 0x01, 0x44};
+// unique rec id
+constexpr uint8_t RECV_PREFIX[] = {0x00, 0x01, 0x02};
 
 class EraeApiImpl_ {
 public:
@@ -56,6 +59,7 @@ public:
     // requests
     void enableApi();
     void disableApi();
+    void requestVersion();
     void requestZoneBoundary(unsigned zone);
     void clearZone(unsigned zone);
     void drawPixel(unsigned zone, unsigned x, unsigned y, unsigned rgb);
@@ -71,6 +75,7 @@ private:
     void onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z);
     void onEndTouch(unsigned zone, unsigned touch, float x, float y, float z);
     void onZoneData(unsigned zone, unsigned width, unsigned height);
+    void onVersion(unsigned version);
 
     void noteOn(unsigned ch, unsigned n, unsigned v);
     void noteOff(unsigned ch, unsigned n, unsigned v);
@@ -129,6 +134,12 @@ void EraeApiImpl_::onZoneData(unsigned zone, unsigned width, unsigned height) {
     }
 }
 
+void EraeApiImpl_::onVersion(unsigned version) {
+    for (const auto &cb: callbacks_) {
+        cb->onVersion(version);
+    }
+}
+
 
 void EraeApiImpl_::noteOn(unsigned ch, unsigned n, unsigned v) {
     for (const auto &cb: callbacks_) {
@@ -162,7 +173,7 @@ void EraeApiImpl_::ch_pressure(unsigned ch, unsigned v) {
 
 
 void EraeApiImpl_::enableApi() {
-    SysExOutputStream sysex(13 + sizeof(RECV_PREFIX) + 1);
+    SysExOutputStream sysex(E_SYSEX_SZ + sizeof(RECV_PREFIX) + 1);
     sysex.begin();
     sysex.addHeader(SysExMsgs::E_ENABLE);
     sysex.addData(RECV_PREFIX, sizeof(RECV_PREFIX));
@@ -176,7 +187,7 @@ void EraeApiImpl_::enableApi() {
 }
 
 void EraeApiImpl_::disableApi() {
-    SysExOutputStream sysex(13 + 1);
+    SysExOutputStream sysex(E_SYSEX_SZ + 1);
     sysex.begin();
     sysex.addHeader(SysExMsgs::E_DISABLE);
     sysex.end();
@@ -188,8 +199,28 @@ void EraeApiImpl_::disableApi() {
     }
 }
 
+void EraeApiImpl_::requestVersion() {
+#ifdef ERAR_API_2
+    SysExOutputStream sysex(E_SYSEX_SZ + sizeof(RECV_PREFIX) + 1);
+    sysex.begin();
+    sysex.addHeader(SysExMsgs::E_VERSION);
+    sysex.addData(RECV_PREFIX, sizeof(RECV_PREFIX));
+    sysex.end();
+
+    if (sysex.isValid()) {
+        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+    } else {
+        LOG_0("requestVersion() - failed");
+    }
+#else
+        LOG_0("requestVersion() - unsupport in api v1 ");
+#endif 
+}
+
+
+
 void EraeApiImpl_::requestZoneBoundary(unsigned zone) {
-    SysExOutputStream sysex(13 + 1 + 1);
+    SysExOutputStream sysex(E_SYSEX_SZ + 1 + 1);
     sysex.begin();
     sysex.addHeader(SysExMsgs::E_BOUNDARY);
     sysex.addUnsigned7(zone);
@@ -204,7 +235,7 @@ void EraeApiImpl_::requestZoneBoundary(unsigned zone) {
 
 
 void EraeApiImpl_::clearZone(unsigned zone) {
-    SysExOutputStream sysex(13 + 1 + 1);
+    SysExOutputStream sysex(E_SYSEX_SZ + 1 + 1);
     sysex.begin();
     sysex.addHeader(SysExMsgs::E_CLEAR);
     sysex.addUnsigned7(zone);
@@ -218,7 +249,7 @@ void EraeApiImpl_::clearZone(unsigned zone) {
 }
 
 void EraeApiImpl_::drawPixel(unsigned zone, unsigned x, unsigned y, unsigned rgb) {
-    SysExOutputStream sysex(13 + 6 + 1);
+    SysExOutputStream sysex(E_SYSEX_SZ + 6 + 1);
     sysex.begin();
     sysex.addHeader(SysExMsgs::E_D_PIXEL);
     sysex.addUnsigned7(zone);
@@ -238,7 +269,7 @@ void EraeApiImpl_::drawPixel(unsigned zone, unsigned x, unsigned y, unsigned rgb
 
 void EraeApiImpl_::drawRectangle(unsigned zone, unsigned x, unsigned y, unsigned w, unsigned h, unsigned rgb) {
 //    assert(sizeof(unsigned) == 4);
-    SysExOutputStream sysex(13 + 8 + 1);
+    SysExOutputStream sysex(E_SYSEX_SZ + 8 + 1);
     sysex.begin();
     sysex.addHeader(SysExMsgs::E_D_RECT);
     sysex.addUnsigned7(zone);
@@ -293,7 +324,7 @@ void EraeApiImpl_::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, 
 
     uint8_t chksum = SysExOutputStream::bitize(bitbuf8, sz8, bitbuf7);
 
-    SysExOutputStream sysex(13 + 5 + sz7 + 1 + 1);
+    SysExOutputStream sysex(E_SYSEX_SZ + 5 + sz7 + 1 + 1);
     sysex.begin();
     sysex.addHeader(SysExMsgs::E_D_IMG);
     sysex.addUnsigned7(zone);
@@ -339,45 +370,74 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
             unsigned dat2 = sysex.readUnsigned7();
             if (dat1 == 0x7f) {
                 // not fingerstream
+                // LOG_1("sysex:: non stream" << (unsigned) dat1 << ", " << (unsigned) dat2);
                 if (dat2 == 0x01) {
                     // boundary reply
                     unsigned zone = sysex.readUnsigned7();
                     unsigned w = sysex.readUnsigned7();
                     unsigned h = sysex.readUnsigned7();
+                    // LOG_1("sysex onzonedata :" << zone << " - " << w << " , " << h )
                     parent_->onZoneData(zone, w, h);
+                } else if (dat2 == 0x02) {
+                    // version reply
+                    unsigned version = sysex.readUnsigned7();
+                    parent_->onVersion(version);
                 } else {
                     LOG_1("sysex:: valid prefix, non finger, but unknown msg" << (unsigned) dat1 << ", " << (unsigned) dat2);
                 }
             } else {
-                static uint8_t *bitbuf7 = nullptr;
-                static uint8_t *bitbuf8 = nullptr;
-                static uint8_t bitsz7 = 14;
-                static uint8_t bitsz8 = SysExInputStream::unbitizedSize(bitsz7);
-                if (bitbuf7 == nullptr) {
-                    bitbuf7 = new uint8_t[bitsz7];
-                    bitbuf8 = new uint8_t[bitsz8];
+#ifdef ERAR_API_2
+                // finger id
+                static uint8_t fin_8_BufSz = 8;
+                static uint8_t fin_7_BufSz =SysExInputStream::bitized7Size(fin_8_BufSz);
+                static uint8_t *fin_8_Buf = nullptr;
+                static uint8_t *fin_7_Buf = nullptr;
+                if (fin_7_Buf == nullptr) {
+                    fin_7_Buf = new uint8_t[fin_7_BufSz];
+                    fin_8_Buf = new uint8_t[fin_8_BufSz];
                 }
 
-                sysex.readData(bitbuf7, bitsz7);
+                sysex.readData(fin_7_Buf, fin_7_BufSz);
+                SysExInputStream::unbitize(fin_7_Buf, fin_7_BufSz, fin_8_Buf);
+
+                uint64_t* int64_data = static_cast<uint64_t *>(static_cast<void *>(fin_8_Buf));
+                int8_t action = dat1;
+                unsigned touch = (int) (*int64_data);
+                unsigned zone = dat2;
+
+#else 
+                int8_t action = dat1 >> 4;
+                unsigned touch = dat1 & 0b0001111;
+                unsigned zone = dat2;
+#endif 
+
+                // xyz data 
+                static uint8_t xyz_8_BufSz = 3 * 4;
+                static uint8_t xyz_7_BufSz =SysExInputStream::bitized7Size(xyz_8_BufSz);
+                static uint8_t *xyz_8_Buf = nullptr;
+                static uint8_t *xyz_7_Buf = nullptr;
+                if (xyz_7_Buf == nullptr) {
+                    xyz_7_Buf = new uint8_t[xyz_7_BufSz];
+                    xyz_8_Buf = new uint8_t[xyz_8_BufSz];
+                }
+
+                sysex.readData(xyz_7_Buf, xyz_7_BufSz);
                 uint8_t exp_chksum = sysex.readUnsigned7();
-                uint8_t chksum = SysExInputStream::unbitize(bitbuf7, bitsz7, bitbuf8);
+                uint8_t chksum = SysExInputStream::unbitize(xyz_7_Buf, xyz_7_BufSz, xyz_8_Buf);
                 if (exp_chksum != chksum) {
                     LOG_1("sysex:: fingerstream invalid chk " << (unsigned) chksum << " != " << (unsigned) exp_chksum);
                 }
 
 
                 // fingerstream
-                unsigned touch = dat1 & 0b0001111;
-                unsigned zone = dat2;
                 float x = 0, y = 0, z = 0;
 
-                float *float_data = static_cast<float *>(static_cast<void *>(bitbuf8));
+                float *float_data = static_cast<float *>(static_cast<void *>(xyz_8_Buf));
                 x = float_data[0];
                 y = float_data[1];
                 z = float_data[2];
 
-                int8_t a = dat1 >> 4;
-                switch (a) {
+                switch (action) {
                     case 0 :
                         parent_->onStartTouch(zone, touch, x, y, z);
                         break;
@@ -394,7 +454,7 @@ void EraeApiMidiCallback::sysex(const unsigned char *data, unsigned sz) {
 
 
         } else {
-//            LOG_1("sysex:: not from this lib");
+           LOG_1("sysex:: not from this lib");
         }
     } else {
         LOG_1("sysex:: invalid sysex");
@@ -448,6 +508,10 @@ void EraeApi::enableApi() {
 
 void EraeApi::disableApi() {
     impl_->disableApi();
+}
+
+void EraeApi::requestVersion() {
+    impl_->requestVersion();
 }
 
 void EraeApi::requestZoneBoundary(unsigned zone) {

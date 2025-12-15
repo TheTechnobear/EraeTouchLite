@@ -1,17 +1,17 @@
 # Overview
 
-
-
 # EraeAPI
 
-currently source of the API docuement is here:
-https://docs.google.com/document/d/1934KP1SgKWqVYTwswzh8UTNj7FUCIA-80X2mp_9RxN4/edit#heading=h.51ur1993g867
 
 
-the PDF in this directly is just for convenience, and has been exported from above link
-last updated: 10-Oct-2021
+api is now available on 
+https://gitlab.com/embodme/erae_api_sysex
+
+Ive added into external dir as submoule, but copied the pdf here for easy reference
 
 
+the V1 doc is the original api, I will remove once Ive verified api can work for both 
+Erae Touch 1 and Erae 2
 
 
 

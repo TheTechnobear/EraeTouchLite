@@ -26,6 +26,8 @@ public:
 
     virtual void onZoneData(unsigned zone, unsigned width, unsigned height) { ; }
 
+    virtual void onVersion(unsigned version) { ; }
+
     // midi
     virtual void noteOn(unsigned ch, unsigned n, unsigned v) { ; }
 
@@ -49,6 +51,7 @@ public:
 
     void enableApi();
     void disableApi();
+    void requestVersion();
     void requestZoneBoundary(unsigned zone);
     void clearZone(unsigned zone);
     void drawPixel(unsigned zone, unsigned x, unsigned y, unsigned rgb = 0xFFFFFF);

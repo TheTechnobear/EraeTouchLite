@@ -24,6 +24,7 @@ public:
     void onStartTouch(unsigned zone, unsigned touch, float x, float y, float z);
     void onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z);
     void onEndTouch(unsigned zone, unsigned touch, float x, float y, float z);
+    void onVersion(unsigned version);
 private:
 
     void drawTrails();
@@ -32,7 +33,7 @@ private:
 
     std::string device_;
     std::shared_ptr<EraeApi::EraeApi> api_;
-    unsigned zone_ = 10;
+    unsigned zone_ = 0;
     unsigned zoneWidth_ = 0x7f, zoneHeight_ = 0x7f;
     std::vector<TrailData> trails_;
 };

@@ -1,3 +1,9 @@
 [submodule "external/libremidi"]
 	path = external/libremidi
 	url = https://github.com/jcelerier/libremidi
+[submodule "external/rtmidi"]
+	path = external/rtmidi
+	url = https://github.com/thestk/rtmidi
+[submodule "external/erae_api_sysex"]
+	path = external/erae_api_sysex
+	url = https://gitlab.com/embodme/erae_api_sysex

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <unistd.h>
 
-static const char *DEVICE = "Erae Touch";
+static const char *DEVICE = "Erae 2 MIDI";
 static volatile bool keepRunning = 1;
 
 void intHandler(int dummy) {
@@ -51,6 +51,9 @@ public:
     void onZoneData(unsigned zone, unsigned width, unsigned height) {
         app_->onZoneData(zone, width, height);
     }
+    void onVersion(unsigned version) {
+        app_->onVersion(version);
+    }
 
 private:
     DemoApp *app_;
@@ -63,6 +66,7 @@ void DemoApp::start() {
     api_->start();
     api_->disableApi(); // just in case something is already started!
     api_->enableApi();
+    api_->requestVersion();
     api_->requestZoneBoundary(zone_);
     api_->clearZone(zone_);
 }
@@ -79,6 +83,12 @@ void DemoApp::process() {
     cleanTrails();
     usleep(100 * 1000);
 }
+
+
+void DemoApp::onVersion(unsigned version) {
+    std::cout << "onVersion : version " << version <<  std::endl;
+}
+
 
 void DemoApp::onZoneData(unsigned zone, unsigned width, unsigned height) {
     if (zone_ == zone) {
@@ -99,12 +109,15 @@ static constexpr unsigned colours[MAXCOLOUR] = {
 
 void DemoApp::onStartTouch(unsigned zone, unsigned touch, float x, float y, float z) {
     if (zone != zone_) return;
+    // std::cout << "onStartTouch :  " << zone << " - " << touch << " : " << x << " , " << y << " , " << z << std::endl;
     unsigned c = colours[touch % MAXCOLOUR];
     trails_.push_back(TrailData(x, y, c));
+
 }
 
 void DemoApp::onSlideTouch(unsigned zone, unsigned touch, float x, float y, float z) {
     if (zone != zone_) return;
+    // std::cout << "onSlideTouch :  " << zone << " - " << touch << " : " << x << " , " << y << " , " << z << std::endl;
 
     unsigned nx = (unsigned) x;
     for (auto &t: trails_) {
@@ -118,7 +131,7 @@ void DemoApp::onSlideTouch(unsigned zone, unsigned touch, float x, float y, floa
 }
 
 void DemoApp::onEndTouch(unsigned zone, unsigned touch, float x, float y, float z) {
-
+    // std::cout << "onEndTouch :  " << zone << " - " << touch << " : " << x << " , " << y << " , " << z << std::endl;
 }
 
 void DemoApp::drawTrails() {
