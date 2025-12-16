@@ -1,13 +1,12 @@
 #pragma once
 
-#include <MidiDevice.h>
+#include <QMidiDevice.h>
 
 #include <libremidi/libremidi.hpp>
 
 #include <memory>
 #include <vector>
 
-#include <readerwriterqueue.h>
 
 #include <atomic>
 
@@ -15,10 +14,10 @@
 namespace EraeApi {
 
 
-class LibreMidiDevice : public MidiDevice {
+class LibreMidiDevice : public QMidiDevice {
 
 public:
-    LibreMidiDevice(unsigned inQueueSize = MidiDevice::MAX_QUEUE_SIZE, unsigned outQueueSize = MidiDevice::MAX_QUEUE_SIZE);
+    LibreMidiDevice(unsigned inQueueSize = QMidiDevice::MAX_QUEUE_SIZE, unsigned outQueueSize = QMidiDevice::MAX_QUEUE_SIZE);
     virtual ~LibreMidiDevice();
     bool init(const char *indevice, const char *outdevice, bool virtualOutput = false) override;
     void deinit() override;

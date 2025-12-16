@@ -35,7 +35,7 @@ static constexpr int MAX_QUEUE_SIZE = 128;
 
 
 ////////////////////////////////////////////////
-LibreMidiDevice::LibreMidiDevice(unsigned inQueueSize, unsigned outQueueSize) : MidiDevice(inQueueSize, outQueueSize) {
+LibreMidiDevice::LibreMidiDevice(unsigned inQueueSize, unsigned outQueueSize) : QMidiDevice(inQueueSize, outQueueSize) {
     LOG_0("Using LibreMidiDevice " << libremidi::get_version());
 }
 

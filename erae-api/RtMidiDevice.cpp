@@ -73,7 +73,7 @@ namespace EraeApi {
 
 
 ////////////////////////////////////////////////
-RtMidiDevice::RtMidiDevice(unsigned inQueueSize, unsigned outQueueSize) : MidiDevice(inQueueSize, outQueueSize) {
+RtMidiDevice::RtMidiDevice(unsigned inQueueSize, unsigned outQueueSize) : QMidiDevice(inQueueSize, outQueueSize) {
     LOG_0("Using rtmidi " << RtMidi::getVersion());
 
     try {

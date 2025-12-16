@@ -1,9 +1,12 @@
 #include "MidiDevice.h"
 
-#include <iostream>
 
-#define LOG_0(x) std::cerr << x << std::endl;
-#define LOG_1(x) std::cerr << x << std::endl;
+#define LOG_0(x)
+#define LOG_1(x)
+
+// #include <iostream>
+// #define LOG_0(x) std::cerr << x << std::endl;
+// #define LOG_1(x) std::cerr << x << std::endl;
 
 
 namespace EraeApi {
@@ -51,8 +54,7 @@ void MidiCallback::process(const MidiMsg &msg) {
 }
 
 ////////////////////////////////////////////////
-MidiDevice::MidiDevice(unsigned inQueueSize, unsigned outQueueSize) :
-    active_(false), inQueue_(inQueueSize), outQueue_(outQueueSize) {
+MidiDevice::MidiDevice() : active_(false){
 }
 
 MidiDevice::~MidiDevice() {
@@ -97,6 +99,17 @@ bool MidiDevice::isActive() {
     return active_;
 }
 
+bool MidiDevice::sendCC(unsigned ch, unsigned cc, unsigned v) { 
+    return queueOutMsg(MidiMsg::create(0xB0 + ch, cc, v)); 
+}
+
+bool MidiDevice::sendNoteOn(unsigned ch, unsigned note, unsigned vel) { 
+    return queueOutMsg(MidiMsg::create(int(0x90 + ch), note, vel)); 
+}
+
+bool MidiDevice::sendNoteOff(unsigned ch, unsigned note, unsigned vel) { 
+    return queueOutMsg(MidiMsg::create(int(0x80 + ch), note, vel)); 
+}
 
 bool MidiDevice::sendBytes(unsigned char *data, unsigned sz) {
     // std::cerr << "send SysEx :";

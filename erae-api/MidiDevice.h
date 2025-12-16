@@ -3,11 +3,6 @@
 #include <memory>
 #include <vector>
 
-#include <readerwriterqueue.h>
-
-#include <atomic>
-
-
 namespace EraeApi {
 
 class MidiMsg {
@@ -101,47 +96,32 @@ public:
 
 class MidiDevice {
 public:
-    static constexpr int MAX_QUEUE_SIZE = 512;
-
-    MidiDevice(unsigned inQueueSize = MAX_QUEUE_SIZE, unsigned outQueueSize = MAX_QUEUE_SIZE);
+    MidiDevice();
     virtual ~MidiDevice();
+
     virtual bool init(const char *indevice, const char *outdevice, bool virtualOutput = false);
     virtual bool processIn(MidiCallback &cb);
     virtual bool processOut(unsigned maxMsgs = 0);
     virtual void deinit();
     virtual bool isActive();
 
-    bool sendCC(unsigned ch, unsigned cc, unsigned v) { return queueOutMsg(MidiMsg::create(0xB0 + ch, cc, v)); }
-
-    bool sendNoteOn(unsigned ch, unsigned note, unsigned vel) { return queueOutMsg(MidiMsg::create(int(0x90 + ch), note, vel)); }
-
-    bool sendNoteOff(unsigned ch, unsigned note, unsigned vel) { return queueOutMsg(MidiMsg::create(int(0x80 + ch), note, vel)); }
-
+    bool sendCC(unsigned ch, unsigned cc, unsigned v);
+    bool sendNoteOn(unsigned ch, unsigned note, unsigned vel);
+    bool sendNoteOff(unsigned ch, unsigned note, unsigned vel);
     bool sendBytes(unsigned char *data, unsigned sz);
 
-    bool queueInMsg(const MidiMsg &msg) { return inQueue_.try_enqueue(msg); }
-
-    bool queueOutMsg(const MidiMsg &msg) { return outQueue_.try_enqueue(msg); }
-
+    virtual bool queueInMsg(const MidiMsg &msg) = 0;
+    virtual bool queueOutMsg(const MidiMsg &msg) = 0;
 protected:
-
-    bool nextInMsg(MidiMsg &msg) {
-        return inQueue_.try_dequeue(msg);
-    }
-
-    bool nextOutMsg(MidiMsg &msg) {
-        return outQueue_.try_dequeue(msg);
-    }
-
+    virtual bool nextInMsg(MidiMsg &msg) = 0;
+    virtual bool nextOutMsg(MidiMsg &msg) = 0;
+    
     virtual bool isOutputOpen() = 0;
-
     virtual bool send(const MidiMsg &msg) = 0;
 
     bool active_;
     bool virtualOpen_=false;
 
-    moodycamel::ReaderWriterQueue<MidiMsg> inQueue_;
-    moodycamel::ReaderWriterQueue<MidiMsg> outQueue_;
 };
 
 
