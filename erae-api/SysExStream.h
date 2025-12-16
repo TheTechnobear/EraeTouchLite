@@ -54,7 +54,7 @@ enum SysExMsgs {
 
 class SysExOutputStream {
 public:
-    explicit SysExOutputStream(unsigned max_sz, uint8_t ed = E_ERAE2) : size_(0), buf_(new unsigned char[max_sz]), max_sz_(max_sz), device_(ed) { ; }
+    explicit SysExOutputStream(unsigned max_sz, uint8_t ed = E_ERAE2) : buf_(new unsigned char[max_sz]), size_(0), max_sz_(max_sz), device_(ed) { ; }
 
     ~SysExOutputStream() {
         delete[] buf_;
@@ -96,7 +96,7 @@ public:
     }
 
     void addHeader(unsigned apimsg) {
-        for (auto i = 0; i < sizeof(E_Id); i++) {
+        for (unsigned long i = 0; i < sizeof(E_Id); i++) {
             *this << E_Id[i];
         }
         *this << device_;
@@ -191,7 +191,7 @@ public:
     bool readHeader(const uint8_t *r_prefix, size_t r_prefix_sz) {
         bool bad = false;
         bad |= (read() != 0xF0);
-        for (auto i = 0; i < r_prefix_sz; i++) {
+        for (size_t i = 0; i < r_prefix_sz; i++) {
             bad |= (read() != r_prefix[i]);
         }
         return !bad;
@@ -282,9 +282,9 @@ private:
         return 0;
     }
 
-    unsigned pos_ = 0;
-    unsigned size_ = 0;
     const unsigned char *buf_;
+    unsigned size_ = 0;
+    unsigned pos_ = 0;
 };
 
 

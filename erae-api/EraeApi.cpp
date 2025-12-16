@@ -1,24 +1,26 @@
 #include "EraeApi.h"
 
-#include <iostream>
+// #include <iostream>
 #include <utility>
-//#define LOG_0(x)
-#define LOG_0(x) std::cout << x << std::endl;
-//#define LOG_1(x)
-#define LOG_1(x) std::cerr << x << std::endl;
+#define LOG_0(x)
+// #define LOG_0(x) std::cout << x << std::endl;
+#define LOG_1(x)
+// #define LOG_1(x) std::cerr << x << std::endl;
 
 #define ERAR_API_2 1 
 
+#include "MidiDevice.h"
 
-#ifdef USE_LIBRE_MIDI
-#include "LibreMidiDevice.h"
-using MIDI_TYPE_DEVICE = EraeApi::LibreMidiDevice;
-#else
 
-#include "RtMidiDevice.h"
+// #ifdef USE_LIBRE_MIDI
+// #include "LibreMidiDevice.h"
+// using MIDI_TYPE_DEVICE = EraeApi::LibreMidiDevice;
+// #else
 
-using MIDI_TYPE_DEVICE = EraeApi::RtMidiDevice;
-#endif
+// #include "RtMidiDevice.h"
+
+// using MIDI_TYPE_DEVICE = EraeApi::RtMidiDevice;
+// #endif
 
 #include "SysExStream.h"
 
@@ -45,7 +47,7 @@ constexpr uint8_t RECV_PREFIX[] = {0x00, 0x01, 0x02};
 
 class EraeApiImpl_ {
 public:
-    explicit EraeApiImpl_(std::string device);
+    explicit EraeApiImpl_(const std::shared_ptr<MidiDevice>&, std::string);
 
     ~EraeApiImpl_() = default;
     void start();
@@ -85,18 +87,18 @@ private:
 
     std::vector<std::shared_ptr<EraeApiCallback>> callbacks_;
 
+    std::shared_ptr<MidiDevice> device_;
     std::string devname_;
-    MIDI_TYPE_DEVICE device_;
     EraeApiMidiCallback midiCallback_;
 };
 
 
 //---------------------
-EraeApiImpl_::EraeApiImpl_(std::string device) : devname_(std::move(device)), midiCallback_(this) {
+EraeApiImpl_::EraeApiImpl_(const std::shared_ptr<MidiDevice>& device, std::string devname) : device_(device), devname_(std::move(devname)), midiCallback_(this) {
 }
 
 void EraeApiImpl_::start() {
-    device_.init(devname_.c_str(), devname_.c_str());
+    device_->init(devname_.c_str(), devname_.c_str());
     for (const auto &cb: callbacks_) {
         cb->onInit();
     }
@@ -107,7 +109,7 @@ void EraeApiImpl_::stop() {
     for (const auto &cb: callbacks_) {
         cb->onDeinit();
     }
-    device_.deinit();
+    device_->deinit();
 }
 
 void EraeApiImpl_::onStartTouch(unsigned zone, unsigned touch, float x, float y, float z) {
@@ -180,7 +182,7 @@ void EraeApiImpl_::enableApi() {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+        device_->sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("enableApi() - failed");
     }
@@ -193,7 +195,7 @@ void EraeApiImpl_::disableApi() {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+        device_->sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("disableApi() - failed");
     }
@@ -208,7 +210,7 @@ void EraeApiImpl_::requestVersion() {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+        device_->sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("requestVersion() - failed");
     }
@@ -227,7 +229,7 @@ void EraeApiImpl_::requestZoneBoundary(unsigned zone) {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+        device_->sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("requestZoneBoundary() - failed");
     }
@@ -242,7 +244,7 @@ void EraeApiImpl_::clearZone(unsigned zone) {
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+        device_->sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("clearZone() - failed");
     }
@@ -261,7 +263,7 @@ void EraeApiImpl_::drawPixel(unsigned zone, unsigned x, unsigned y, unsigned rgb
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+        device_->sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("drawPixel() - failed");
     }
@@ -283,7 +285,7 @@ void EraeApiImpl_::drawRectangle(unsigned zone, unsigned x, unsigned y, unsigned
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+        device_->sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("drawRectangle() - failed");
     }
@@ -337,7 +339,7 @@ void EraeApiImpl_::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, 
     sysex.end();
 
     if (sysex.isValid()) {
-        device_.sendBytes(sysex.releaseBuffer(), sysex.size());
+        device_->sendBytes(sysex.releaseBuffer(), sysex.size());
     } else {
         LOG_0("drawImage() - failed");
     }
@@ -346,8 +348,8 @@ void EraeApiImpl_::drawImage(unsigned zone, unsigned x, unsigned y, unsigned w, 
 
 unsigned EraeApiImpl_::process(void) {
     unsigned count = 0;
-    device_.processIn(midiCallback_);
-    device_.processOut();
+    device_->processIn(midiCallback_);
+    device_->processOut();
     return count > 0;
 }
 
@@ -485,7 +487,7 @@ void EraeApiMidiCallback::ch_pressure(unsigned ch, unsigned v) {
 
 //---------------------
 
-EraeApi::EraeApi(const std::string &d) : impl_(new EraeApiImpl_(d)) {
+EraeApi::EraeApi(const std::shared_ptr<MidiDevice>& device,const std::string &d) : impl_(new EraeApiImpl_(device, d)) {
 }
 
 EraeApi::~EraeApi() {

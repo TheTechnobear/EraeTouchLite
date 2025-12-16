@@ -1,7 +1,5 @@
 #pragma once
 
-#include <RtMidi.h>
-
 #include <memory>
 #include <vector>
 
@@ -142,8 +140,8 @@ protected:
     bool active_;
     bool virtualOpen_=false;
 
-    moodycamel::ReaderWriterQueue<MidiMsg> outQueue_;
     moodycamel::ReaderWriterQueue<MidiMsg> inQueue_;
+    moodycamel::ReaderWriterQueue<MidiMsg> outQueue_;
 };
 
 

@@ -61,6 +61,7 @@ private:
 
 
 void DemoApp::start() {
+    device_=std::make_shared<EraeApi::RtMidiDevice>();
     api_ = std::make_shared<EraeApi::EraeApi>(device_);
     api_->addCallback(std::make_shared<DemoCallback>(this));
     api_->start();

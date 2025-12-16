@@ -42,9 +42,11 @@ public:
 
 class EraeApiImpl_;
 
+class MidiDevice;
+
 class EraeApi {
 public:
-    EraeApi(const std::string &device);
+    EraeApi(const std::shared_ptr<MidiDevice>&,  const std::string &);
     virtual ~EraeApi();
     void start();
     void stop();
