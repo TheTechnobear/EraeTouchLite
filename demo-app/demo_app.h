@@ -15,7 +15,7 @@ struct TrailData {
 
 class DemoApp {
 public:
-    explicit DemoApp(const char *dev) : device_(dev) {}
+    explicit DemoApp(const char *dev) : deviceName_(dev) {}
 
     void start();
     void stop();
@@ -32,9 +32,9 @@ private:
     void advanceTrails();
     void cleanTrails();
 
-    std::string device_;
+    std::string deviceName_;
     std::shared_ptr<EraeApi::EraeApi> api_;
-    std::shared_ptr<EraeApi::RtMidiDevice> device_;
+    std::shared_ptr<EraeApi::MidiDevice> midiDevice_;
     unsigned zone_ = 0;
     unsigned zoneWidth_ = 0x7f, zoneHeight_ = 0x7f;
     std::vector<TrailData> trails_;

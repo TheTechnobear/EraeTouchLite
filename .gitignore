@@ -31,5 +31,5 @@ Podfile.lock
 **/*.o
 **/*.so
 **/*.dylib
-
+.cache/*
 

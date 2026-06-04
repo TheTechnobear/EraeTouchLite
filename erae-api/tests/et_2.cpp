@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include <EraeApi.h>
+#include <RtMidiDevice.h>
 
 static const char *DEVICE = "Erae Touch";
 
@@ -62,7 +63,7 @@ public:
 };
 
 void Test::start() {
-    api_ = std::make_shared<EraeApi::EraeApi>(device_);
+    api_ = std::make_shared<EraeApi::EraeApi>(std::make_shared<EraeApi::RtMidiDevice>(),device_);
     api_->addCallback(std::make_shared<TestCallback>());
     api_->start();
     api_->disableApi();
