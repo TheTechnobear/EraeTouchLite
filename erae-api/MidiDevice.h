@@ -61,15 +61,13 @@ public:
         return MidiMsg(data, size);
     }
 
-    friend class MidiDevice;
-
-private:
     void destroy() {
         delete data_;
         data_ = nullptr;
         size_ = 0;
 
     }
+private:
 
     unsigned char *data_;
     unsigned size_;
